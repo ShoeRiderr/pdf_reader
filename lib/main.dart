@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:typed_data';
 
 void main() {
@@ -32,6 +33,7 @@ class PDFReaderWithTTS extends StatefulWidget {
 
 class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
   String _pdfText = '';
+  File? _file;
   final FlutterTts _flutterTts = FlutterTts();
   bool _isLoading = false;
   String _selectedLanguage = 'en-US';
@@ -51,21 +53,23 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
 
     if (result != null && result.files.single.path != null) {
       setState(() {
+        String? _pdfPath = result.files.single.path!;
+        _file = File(_pdfPath);
         _isLoading = true;
       });
 
       try {
-        File file = File(result.files.single.path!);
-        Uint8List bytes = await file.readAsBytes();
-
+        Uint8List? bytes = await _file?.readAsBytes();
         // Load the PDF document
         final PdfDocument document = PdfDocument(inputBytes: bytes);
 
         // Extract text
-        String text = PdfTextExtractor(document).extractText();
-
+        String rawText = PdfTextExtractor(document).extractText();
+        final processedText = rawText.replaceAll(RegExp(r'\s+'), ' ');
+        String formattedText = _formatText(processedText);
+        debugPrint(formattedText);
         setState(() {
-          _pdfText = text;
+          _pdfText = formattedText;
           _isLoading = false;
         });
 
@@ -80,6 +84,13 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
     }
   }
 
+  String _formatText(String text) {
+    // Insert a space after each period, exclamation mark, or question mark
+    return text.replaceAllMapped(
+      RegExp(r'([.!?])'),
+          (match) => '${match.group(1)} ', // Add the matched punctuation followed by a space
+    ).trim();
+  }
   Future<void> _speak() async {
     await _flutterTts.setLanguage(_selectedLanguage);
     await _flutterTts.setPitch(1.0);
@@ -131,15 +142,16 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
           style: TextStyle(fontSize: 18),
         ),
       )
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Text(
-            _pdfText,
-            style: TextStyle(fontSize: 16),
-          ),
-        ),
-      ),
+          : SfPdfViewer.file(_file!),
+      // Padding(
+      //   padding: const EdgeInsets.all(16.0),
+      //   child: SingleChildScrollView(
+      //     child: Text(
+      //       _pdfText,
+      //       style: TextStyle(fontSize: 16),
+      //     ),
+      //   ),
+      // ),
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
