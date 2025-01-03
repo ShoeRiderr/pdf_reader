@@ -33,10 +33,13 @@ class PDFReaderWithTTS extends StatefulWidget {
 
 class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
   String _pdfText = '';
+  int _sentenceIndex = 0;
   File? _file;
   final FlutterTts _flutterTts = FlutterTts();
   bool _isLoading = false;
   String _selectedLanguage = 'en-US';
+  List<String> _sentences = [];
+  bool _isStopped = false;
 
   final Map<String, String> _languages = {
     'English': 'en-US',
@@ -67,8 +70,11 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
         String rawText = PdfTextExtractor(document).extractText();
         final processedText = rawText.replaceAll(RegExp(r'\s+'), ' ');
         String formattedText = _formatText(processedText);
-        debugPrint(formattedText);
+        RegExp delimiter = RegExp(r'[.!?]+');
+
         setState(() {
+          // Split the string into an array
+          _sentences = formattedText.split(delimiter);
           _pdfText = formattedText;
           _isLoading = false;
         });
@@ -91,19 +97,41 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
           (match) => '${match.group(1)} ', // Add the matched punctuation followed by a space
     ).trim();
   }
+
   Future<void> _speak() async {
     await _flutterTts.setLanguage(_selectedLanguage);
     await _flutterTts.setPitch(1.0);
-    await _flutterTts.speak(_pdfText);
+
+    if (_sentences.isNotEmpty) {
+      for(int i = _sentenceIndex; i < _sentences.length; i++) {
+        if (_isStopped) {
+          setState(() {
+            _isStopped = false;
+          });
+          break;
+        }
+        await _flutterTts.awaitSpeakCompletion(true);
+        await _flutterTts.speak(_sentences[i].toString());
+        setState(() {
+          _sentenceIndex = i;
+        });
+      }
+    }
   }
 
   Future<void> _stop() async {
     await _flutterTts.stop();
+    setState(() {
+      _isStopped = true;
+    });
   }
 
   @override
   void dispose() {
     _flutterTts.stop();
+    setState(() {
+      _isStopped = true;
+    });
     super.dispose();
   }
 
@@ -143,15 +171,6 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
         ),
       )
           : SfPdfViewer.file(_file!),
-      // Padding(
-      //   padding: const EdgeInsets.all(16.0),
-      //   child: SingleChildScrollView(
-      //     child: Text(
-      //       _pdfText,
-      //       style: TextStyle(fontSize: 16),
-      //     ),
-      //   ),
-      // ),
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
