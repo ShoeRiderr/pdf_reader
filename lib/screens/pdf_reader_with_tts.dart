@@ -7,8 +7,9 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:typed_data';
 
 class PDFReaderWithTTS extends StatefulWidget {
-  const PDFReaderWithTTS({super.key});
+  const PDFReaderWithTTS({super.key, this.file});
 
+  final FilePickerResult? file;
   @override
   PDFReaderWithTTSState createState() => PDFReaderWithTTSState();
 }
@@ -22,11 +23,20 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
   List<String> _sentences = [];
   bool _isStopped = false;
 
+  @override
+  void initState() {
+    if (widget.file != null) {
+      _loadFile(widget.file!);
+    }
+    super.initState();
+  }
+
   final Map<String, String> _languages = {
     'English': 'en-US',
     'Spanish': 'es-ES',
     'French': 'fr-FR',
     'German': 'de-DE',
+    'Polish': 'pl-PL',
   };
 
   Future<void> _pickAndLoadPDF() async {
@@ -36,36 +46,40 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
     );
 
     if (result != null && result.files.single.path != null) {
+      _loadFile(result);
+    }
+  }
+
+  void _loadFile(FilePickerResult result) async {
+    setState(() {
+      String? pdfPath = result.files.single.path!;
+      _file = File(pdfPath);
+      _isLoading = true;
+    });
+
+    try {
+      Uint8List? bytes = await _file?.readAsBytes();
+      // Load the PDF document
+      final PdfDocument document = PdfDocument(inputBytes: bytes);
+
+      // Extract text
+      String rawText = PdfTextExtractor(document).extractText();
+      final processedText = rawText.replaceAll(RegExp(r'\s+'), ' ');
+      String formattedText = _formatText(processedText);
+      RegExp delimiter = RegExp(r'[.!?]+');
+
       setState(() {
-        String? pdfPath = result.files.single.path!;
-        _file = File(pdfPath);
-        _isLoading = true;
+        // Split the string into an array
+        _sentences = formattedText.split(delimiter);
+        _isLoading = false;
       });
 
-      try {
-        Uint8List? bytes = await _file?.readAsBytes();
-        // Load the PDF document
-        final PdfDocument document = PdfDocument(inputBytes: bytes);
-
-        // Extract text
-        String rawText = PdfTextExtractor(document).extractText();
-        final processedText = rawText.replaceAll(RegExp(r'\s+'), ' ');
-        String formattedText = _formatText(processedText);
-        RegExp delimiter = RegExp(r'[.!?]+');
-
-        setState(() {
-          // Split the string into an array
-          _sentences = formattedText.split(delimiter);
-          _isLoading = false;
-        });
-
-        // Dispose of the document to free resources
-        document.dispose();
-      } catch (e) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      // Dispose of the document to free resources
+      document.dispose();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 

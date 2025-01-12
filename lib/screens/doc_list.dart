@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-
-import '../widgets/doc_list_item.dart';
+import 'package:pdf_reader/screens/pdf_reader_with_tts.dart';
+import 'package:pdf_reader/widgets/doc_list_item.dart';
 
 class DocList extends StatefulWidget {
   const DocList({super.key});
@@ -56,19 +56,21 @@ class DocListState extends State<DocList> {
           .toList();
     });
   }
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Document list"),
-      ),
-      body: ListView.builder(
-        itemCount: filteredFiles.length,
-        itemBuilder: (context, index) {
-          return DocListItem(file: filteredFiles[index]);
-        },
-      ),
-    );
+
+  void _selectDoc(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (ctx) => PDFReaderWithTTS()));
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+        itemCount: filteredFiles.length,
+        itemBuilder: (context, index) {
+          return DocListItem(file: filteredFiles[index], onSelectDoc: () {
+            _selectDoc(context);
+          },
+          );
+        },
+      );
+  }
 }
