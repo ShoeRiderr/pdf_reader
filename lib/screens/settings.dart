@@ -25,9 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         )
     );
 
-    setState(() {
-      widget.onSelectFilters(result);
-    });
+    widget.onSelectFilters(result);
   }
 
   @override

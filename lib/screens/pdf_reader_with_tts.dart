@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:typed_data';
 
+import 'package:pdf_reader/services/file_service.dart';
+
 class PDFReaderWithTTS extends StatefulWidget {
   const PDFReaderWithTTS({super.key, this.file});
 
-  final FilePickerResult? file;
+  final File? file;
   @override
   PDFReaderWithTTSState createState() => PDFReaderWithTTSState();
 }
@@ -40,20 +41,16 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
   };
 
   Future<void> _pickAndLoadPDF() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-    );
+    File? result = await FileService.prepareFile();
 
-    if (result != null && result.files.single.path != null) {
+    if (result != null) {
       _loadFile(result);
     }
   }
 
-  void _loadFile(FilePickerResult result) async {
+  void _loadFile(File result) async {
     setState(() {
-      String? pdfPath = result.files.single.path!;
-      _file = File(pdfPath);
+      _file = result;
       _isLoading = true;
     });
 
@@ -168,18 +165,21 @@ class PDFReaderWithTTSState extends State<PDFReaderWithTTS> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton(
+            heroTag: 'upload',
             onPressed: _pickAndLoadPDF,
             tooltip: 'Upload PDF',
             child: Icon(Icons.upload_file),
           ),
           SizedBox(width: 10),
           FloatingActionButton(
+            heroTag: 'speak',
             onPressed: _speak,
             tooltip: 'Play',
             child: Icon(Icons.play_arrow),
           ),
           SizedBox(width: 10),
           FloatingActionButton(
+            heroTag: 'stop',
             onPressed: _stop,
             tooltip: 'Stop',
             child: Icon(Icons.stop),

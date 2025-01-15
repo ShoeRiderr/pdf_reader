@@ -4,34 +4,34 @@ import 'package:pdf_reader/screens/pdf_reader_with_tts.dart';
 import 'package:pdf_reader/services/file_service.dart';
 import 'package:pdf_reader/widgets/doc_list_item.dart';
 
-class DocListScreen extends StatefulWidget {
-  const DocListScreen({super.key, required this.savedFiles});
-  final Future<List<FileSystemEntity>> savedFiles;
+class DocList extends StatefulWidget {
+  const DocList({super.key});
 
   @override
-  DocListScreenState createState() => DocListScreenState();
+  DocListState createState() => DocListState();
 }
 
-class DocListScreenState extends State<DocListScreen> {
+class DocListState extends State<DocList> {
   String? selectedExtension;
   late List<FileSystemEntity> _savedFiles;
+  late Directory _appStorageDir;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _prepareSavedFiles();
+    _initializeStorage();
   }
 
-  @override
-  void dispose() {
-    _savedFiles = [];
-    super.dispose();
+  Future<void> _initializeStorage() async {
+    _appStorageDir = await FileService.getStoragePath();
+    _loadSavedFiles();
   }
 
-  void _prepareSavedFiles() async {
-    final files = await widget.savedFiles;
-
+  void _loadSavedFiles() {
+    final files = _appStorageDir.listSync().where((entity) {
+      return entity is File && entity.path.endsWith('.pdf');
+    }).toList();
     setState(() {
       _savedFiles = files;
       _isLoading = false;
@@ -47,16 +47,16 @@ class DocListScreenState extends State<DocListScreen> {
     return _isLoading
         ? Center(child: CircularProgressIndicator())
         : _savedFiles.isEmpty
-        ? Center(child: Text('The list is empty.'))
+        ? Center(child: Text('No saved PDFs'))
         : ListView.builder(
-        itemCount: _savedFiles.length,
-        itemBuilder: (context, index) {
-          final file = FileService.getFileFromEntity(_savedFiles[index]);
-          return DocListItem(file: _savedFiles[index], onSelectDoc: () {
-            _selectDoc(context, file!);
-          },
-          );
+      itemCount: _savedFiles.length,
+      itemBuilder: (context, index) {
+        final file = FileService.getFileFromEntity(_savedFiles[index]);
+        return DocListItem(file: _savedFiles[index], onSelectDoc: () {
+          _selectDoc(context, file!);
         },
-      );
+        );
+      },
+    );
   }
 }
