@@ -1,23 +1,39 @@
-import 'dart:io';
+import 'package:pdf_reader/services/file_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class WishFilesNotifier extends StateNotifier<List<FileSystemEntity>> {
-  WishFilesNotifier() : super([]);
+const String storageKey = "wish_doc_lis";
 
-  bool toggleWishStatus(FileSystemEntity file) {
-    final fileIsInWishList = state.contains(file);
+class WishFilesNotifier extends StateNotifier<List<String>> {
+  WishFilesNotifier() : super([]) {
+    _loadFromPrefs();
+  }
 
-    if (fileIsInWishList) {
-      state = state.where((m) => m.path != file.path).toList();
-      return false;
+  bool toggleStatus(String path) {
+    final fileIsWish = state.contains(path);
+    bool result = false;
+
+    if (fileIsWish) {
+      state = state.where((p) => p != path).toList();
+      result = false;
     } else {
-      state = [...state, file];
-      return true;
+      state = [...state, path];
+      result = true;
     }
+
+    FileService.addPersistentData(
+        storageKey,
+        FileService.prepareListOfPathsFromListOfFiles(state)
+    );
+
+    return result;
+  }
+
+  void _loadFromPrefs() async {
+    state = await FileService.getPersistentDataFiles(storageKey) ?? [];
   }
 }
 
 final wishFilesProvider =
-StateNotifierProvider<WishFilesNotifier, List<FileSystemEntity>>((ref) {
+StateNotifierProvider<WishFilesNotifier, List<String>>((ref) {
   return WishFilesNotifier();
 });

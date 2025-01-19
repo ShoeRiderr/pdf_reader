@@ -1,17 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdf_reader/providers/favorite_files.dart';
-import 'package:pdf_reader/providers/read_files_provider.dart';
-import 'package:pdf_reader/providers/wish_files_provider.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf_reader/screens/doc_list.dart';
 import 'package:pdf_reader/screens/pdf_reader_with_tts.dart';
 import 'package:pdf_reader/screens/search_settings.dart';
 import 'package:pdf_reader/screens/settings.dart';
 import 'package:pdf_reader/widgets/main_drawer.dart';
 import 'package:pdf_reader/services/file_service.dart';
-import 'package:pdf_reader/providers/files_provider.dart';
-import 'package:pdf_reader/providers/currently_read_files_provider.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 const kInitialFilters = {
   Filter.autoStart: false,
@@ -28,19 +25,8 @@ class TabsScreen extends ConsumerStatefulWidget {
 
 class _TabsScreenState extends ConsumerState<TabsScreen> {
   Map<Filter, bool> _selectedFilters = kInitialFilters;
-  late Future<List<FileSystemEntity>> allFiles;
-  late Future<List<FileSystemEntity>> currentlyReadFiles;
-  late Future<List<FileSystemEntity>> favoriteFiles;
-  late Future<List<FileSystemEntity>> wishFiles;
-  late Future<List<FileSystemEntity>> readFiles;
-
-  @override
-  void initState() {
-    if (_selectedFilters[Filter.autoStart]!) {
-      FileService.getFileFromDownloads('test.pdf');
-    }
-    super.initState();
-  }
+  String activePage = "all_doc_list";
+  String activeTitle = "Document list";
 
   void _onSelectFilters(Map<Filter, bool>? filters) {
     setState(() {
@@ -52,19 +38,34 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
     Navigator.of(context).pop();
     switch(identifier) {
       case 'current_doc_list':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => DocListScreen(savedFiles: currentlyReadFiles)));
+        setState(() {
+          activePage = "current_doc_list";
+          activeTitle = "Currently read list";
+        });
         break;
       case 'all_doc_list':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => DocListScreen(savedFiles: allFiles)));
+        setState(() {
+          activePage = "all_doc_list";
+          activeTitle = "Document list";
+        });
         break;
       case 'favorites':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => DocListScreen(savedFiles: favoriteFiles)));
+        setState(() {
+          activePage = "favorites";
+          activeTitle = "Favourites";
+        });
         break;
       case 'wish_doc_lis':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => DocListScreen(savedFiles: wishFiles)));
+        setState(() {
+          activePage = "wish_doc_lis";
+          activeTitle = "Wish list";
+        });
         break;
       case 'read_doc_lis':
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => DocListScreen(savedFiles: readFiles)));
+        setState(() {
+          activePage = "read_doc_lis";
+          activeTitle = "Read document list";
+        });
         break;
       case 'settings':
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => SettingsScreen(selectedFilters: _selectedFilters, onSelectFilters: _onSelectFilters,)));
@@ -72,17 +73,45 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
     }
   }
 
+  Future<List<FileSystemEntity>> _filterDocList(List<FileSystemEntity> docList, String key) async {
+    List<String> fav = await FileService.getPersistentDataFiles(key) ?? [];
+    List<FileSystemEntity> result = [];
+
+    for (var i = 0; i < docList.length; i++) {
+      var file = docList[i];
+      if (fav.contains(file.path)) {
+        result.add(file);
+      }
+    }
+
+    return result;
+  }
+
+  Future<List<FileSystemEntity>> getFiles() async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    var allDocs = storageDir.listSync().where((entity) {
+      return entity is File && entity.path.endsWith('.pdf');
+    }).toList();
+
+    switch(activePage) {
+      case 'all_doc_list':
+        return allDocs;
+      case 'favorites':
+        return await _filterDocList(allDocs, 'favourites');
+      case 'wish_doc_lis':
+        return await _filterDocList(allDocs, 'wish_doc_lis');
+      case 'current_doc_list':
+        return await _filterDocList(allDocs, 'current_doc_list');
+      case 'read_doc_lis':
+        return await _filterDocList(allDocs, 'read_doc_lis');
+      default:
+        return allDocs;
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    allFiles = ref.watch(filesProvider);
-    currentlyReadFiles = Future.value(ref.watch(currentlyReadFilesProvider));
-    favoriteFiles = Future.value(ref.watch(favoriteFilesProvider));
-    wishFiles = Future.value(ref.watch(wishFilesProvider));
-    readFiles = Future.value(ref.watch(readFilesProvider));
-
-    Widget activePage = DocListScreen(savedFiles: allFiles);
-    String activeTitle = "Document list";
-
     return Scaffold(
       appBar: AppBar(
         title: Text(activeTitle),
@@ -117,7 +146,20 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
         ],
       ),
       drawer: MainDrawer(onSelectScreen: _setScreen,),
-      body: activePage,
+      body: FutureBuilder(
+        future: getFiles(), // Your asynchronous function
+        builder: (BuildContext context, AsyncSnapshot snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return CircularProgressIndicator(); // Show a loading indicator
+          } else if (snapshot.hasError) {
+            return Text('Error: ${snapshot.error}'); // Display error message
+          } else if (snapshot.hasData) {
+            return DocListScreen(savedFiles: snapshot.data); // Display fetched data
+          } else {
+            return Container(); // Placeholder widget
+          }
+        },
+      ),
     );
   }
 }

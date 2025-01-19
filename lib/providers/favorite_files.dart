@@ -1,23 +1,39 @@
-import 'dart:io';
+import 'package:pdf_reader/services/file_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class FavoriteFilesNotifier extends StateNotifier<List<FileSystemEntity>> {
-  FavoriteFilesNotifier() : super([]);
+const String storageKey = "favourites";
 
-  bool toggleFileFavoriteStatus(FileSystemEntity file) {
-    final fileIsFavorite = state.contains(file);
+class FavoriteFilesNotifier extends StateNotifier<List<String>> {
+  FavoriteFilesNotifier() : super([]) {
+    _loadFromPrefs();
+  }
+
+  bool toggleStatus(String path) {
+    final fileIsFavorite = state.contains(path);
+    bool result = false;
 
     if (fileIsFavorite) {
-      state = state.where((m) => m.path != file.path).toList();
-      return false;
+      state = state.where((p) => p != path).toList();
+      result = false;
     } else {
-      state = [...state, file];
-      return true;
+      state = [...state, path];
+      result = true;
     }
+
+    FileService.addPersistentData(
+        storageKey,
+        FileService.prepareListOfPathsFromListOfFiles(state)
+    );
+
+    return result;
+  }
+
+  void _loadFromPrefs() async {
+    state = await FileService.getPersistentDataFiles(storageKey) ?? [];
   }
 }
 
 final favoriteFilesProvider =
-StateNotifierProvider<FavoriteFilesNotifier, List<FileSystemEntity>>((ref) {
+StateNotifierProvider<FavoriteFilesNotifier, List<String>>((ref) {
   return FavoriteFilesNotifier();
 });

@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:image/image.dart' as img;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FileService {
   static Future<File> getFileFromDownloads(String fileName) async {
@@ -19,7 +19,7 @@ class FileService {
     }
     final files = downloadsDir?.listSync();
     final fileNames = files?.map((e) => e.path).toList();
-    print(fileNames);
+
     if (downloadsDir != null && await downloadsDir.exists()) {
       return File('${downloadsDir.path}/$fileName');
     } else {
@@ -37,6 +37,7 @@ static Future<List<FileSystemEntity>> getAllSavedFiles() async {
       return entity is File && entity.path.endsWith('.pdf');
     }).toList();
 }
+
   static Future<File?> prepareFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -71,26 +72,23 @@ static Future<List<FileSystemEntity>> getAllSavedFiles() async {
     return false;
   }
 
-  static Future<Uint8List?> convertTextToImage(File file) async {
-    try {
-      // Load the text file
-      final text = await file.readAsString();
+  static Future<void> addPersistentData(String key, List<String> value) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setStringList(key, value);
+  }
 
-      // Take the first page (e.g., the first 100 characters)
-      final firstPageText = text.length > 100 ? text.substring(0, 100) : text;
+  static List<String> prepareListOfPathsFromListOfFiles(List<String> filePathList) {
+    List<String> result = [];
 
-      // Create an image with the text
-      final img.Image image = img.Image(500, 300); // Set the dimensions
-      img.fill(image, img.getColor(255, 255, 255)); // Set a white background
-
-      // Draw the text
-      img.drawString(image, img.arial_14, 10, 10, firstPageText, color: img.getColor(0, 0, 0));
-
-      // Convert the image to bytes
-      return Uint8List.fromList(img.encodePng(image));
-    } catch (e) {
-      print('Error: $e');
+    for (var i = 0; i < filePathList.length; i++) {
+      result.add(filePathList[i]);
     }
-    return null;
+
+    return result;
+  }
+
+  static Future<List<String>?> getPersistentDataFiles(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(key);
   }
 }
