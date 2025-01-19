@@ -25,7 +25,7 @@ class TabsScreen extends ConsumerStatefulWidget {
 
 class _TabsScreenState extends ConsumerState<TabsScreen> {
   Map<Filter, bool> _selectedFilters = kInitialFilters;
-  String activePage = "all_doc_list";
+  String activePage = allDocList;
   String activeTitle = "Document list";
 
   void _onSelectFilters(Map<Filter, bool>? filters) {
@@ -37,33 +37,33 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
   void _setScreen(String identifier) {
     Navigator.of(context).pop();
     switch(identifier) {
-      case 'current_doc_list':
+      case currentDocList:
         setState(() {
-          activePage = "current_doc_list";
+          activePage = currentDocList;
           activeTitle = "Currently read list";
         });
         break;
-      case 'all_doc_list':
+      case allDocList:
         setState(() {
-          activePage = "all_doc_list";
+          activePage = allDocList;
           activeTitle = "Document list";
         });
         break;
-      case 'favorites':
+      case favourites:
         setState(() {
-          activePage = "favorites";
+          activePage = favourites;
           activeTitle = "Favourites";
         });
         break;
-      case 'wish_doc_lis':
+      case wishDocList:
         setState(() {
-          activePage = "wish_doc_lis";
+          activePage = wishDocList;
           activeTitle = "Wish list";
         });
         break;
-      case 'read_doc_lis':
+      case readDocList:
         setState(() {
-          activePage = "read_doc_lis";
+          activePage = readDocList;
           activeTitle = "Read document list";
         });
         break;
@@ -94,16 +94,16 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
     }).toList();
 
     switch(activePage) {
-      case 'all_doc_list':
+      case allDocList:
         return allDocs;
-      case 'favorites':
-        return await _filterDocList(allDocs, 'favourites');
-      case 'wish_doc_lis':
-        return await _filterDocList(allDocs, 'wish_doc_lis');
-      case 'current_doc_list':
-        return await _filterDocList(allDocs, 'current_doc_list');
-      case 'read_doc_lis':
-        return await _filterDocList(allDocs, 'read_doc_lis');
+      case favourites:
+        return await _filterDocList(allDocs, favourites);
+      case wishDocList:
+        return await _filterDocList(allDocs, wishDocList);
+      case currentDocList:
+        return await _filterDocList(allDocs, currentDocList);
+      case readDocList:
+        return await _filterDocList(allDocs, readDocList);
       default:
         return allDocs;
     }

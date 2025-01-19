@@ -1,7 +1,9 @@
 import 'package:pdf_reader/services/file_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const String storageKey = "wish_doc_lis";
+import 'package:pdf_reader/screens/doc_list.dart';
+
+const String storageKey = wishDocList;
 
 class WishFilesNotifier extends StateNotifier<List<String>> {
   WishFilesNotifier() : super([]) {

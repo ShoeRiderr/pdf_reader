@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'Package:pdf_reader/screens/doc_list.dart';
+
 class MainDrawer extends StatelessWidget {
   const MainDrawer({super.key, required this.onSelectScreen});
 
@@ -41,7 +43,7 @@ class MainDrawer extends StatelessWidget {
               ),
             ),
             onTap: () {
-              onSelectScreen('current_doc_list');
+              onSelectScreen(currentDocList);
             },
           ),
           ListTile(
@@ -58,7 +60,7 @@ class MainDrawer extends StatelessWidget {
               ),
             ),
             onTap: () {
-              onSelectScreen('all_doc_list');
+              onSelectScreen(allDocList);
             },
           ),
           ListTile(
@@ -75,7 +77,7 @@ class MainDrawer extends StatelessWidget {
               ),
             ),
             onTap: () {
-              onSelectScreen('favorites');
+              onSelectScreen(favourites);
             },
           ),
           ListTile(
@@ -92,7 +94,7 @@ class MainDrawer extends StatelessWidget {
               ),
             ),
             onTap: () {
-              onSelectScreen('wish_doc_lis');
+              onSelectScreen(wishDocList);
             },
           ),
           ListTile(
@@ -109,7 +111,7 @@ class MainDrawer extends StatelessWidget {
               ),
             ),
             onTap: () {
-              onSelectScreen('read_doc_lis');
+              onSelectScreen(readDocList);
             },
           ),
           ListTile(

@@ -1,7 +1,8 @@
 import 'package:pdf_reader/services/file_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf_reader/screens/doc_list.dart';
 
-const String storageKey = "read_doc_lis";
+const String storageKey = readDocList;
 
 class ReadFilesNotifier extends StateNotifier<List<String>> {
   ReadFilesNotifier() : super([]) {

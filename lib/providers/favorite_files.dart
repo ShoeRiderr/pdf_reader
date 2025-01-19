@@ -1,7 +1,9 @@
 import 'package:pdf_reader/services/file_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const String storageKey = "favourites";
+import 'package:pdf_reader/screens/doc_list.dart';
+
+const String storageKey = favourites;
 
 class FavoriteFilesNotifier extends StateNotifier<List<String>> {
   FavoriteFilesNotifier() : super([]) {
