@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf_reader/screens/pdf_reader_with_tts.dart';
 import 'package:pdf_reader/services/file_service.dart';
 import 'package:pdf_reader/widgets/doc_list_item.dart';
+import 'package:pdf_reader/services/file_model_service.dart';
 
 class DocListWidget extends StatefulWidget {
   const DocListWidget({super.key, required this.savedFiles});
@@ -39,7 +40,7 @@ class DocListScreenState extends State<DocListWidget> {
   }
 
   void _selectDoc(BuildContext context, File file) {
-    Navigator.push(context, MaterialPageRoute(builder: (ctx) => PDFReaderWithTTS(file: file)));
+    Navigator.push(context, MaterialPageRoute(builder: (ctx) => PDFReaderWithTTS(file: FileModelService.createNewFromAFile(file))));
   }
 
   @override

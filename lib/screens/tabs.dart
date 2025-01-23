@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf_reader/models/File.dart';
 import 'package:pdf_reader/screens/doc_list.dart';
 import 'package:pdf_reader/screens/pdf_reader_with_tts.dart';
 import 'package:pdf_reader/screens/search_settings.dart';
@@ -9,6 +10,7 @@ import 'package:pdf_reader/screens/settings.dart';
 import 'package:pdf_reader/widgets/main_drawer.dart';
 import 'package:pdf_reader/services/file_service.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:pdf_reader/services/file_model_service.dart';
 
 const kInitialFilters = {
   Filter.autoStart: false,
@@ -109,6 +111,13 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
     }
   }
 
+  void _openPdfView(FileModel fileModel) {
+    Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (ctx) => PDFReaderWithTTS(file: fileModel),
+        )
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -120,17 +129,19 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
               onSelected: (value) async {
                 switch (value) {
                   case 'open_single_file':
-                    File? result = await FileService.prepareFile();
+                    bool status = false;
+                    File? file = await FileService.prepareFile();
 
-                    if (result != null) {
-                      await FileService.saveFile(result);
+                    if (file != null) {
+                      status = await FileService.saveFile(file);
                     }
 
-                    Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (ctx) => PDFReaderWithTTS(file: result),
-                        )
-                    );
+                    if (status) {
+                      _openPdfView(FileModelService.createNewFromAFile(file!));
+                      break;
+                    }
+
+
                     break;
                 }
             },
