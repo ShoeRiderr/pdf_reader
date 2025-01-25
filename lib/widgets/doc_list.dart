@@ -1,13 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:pdf_reader/models/File.dart';
 import 'package:pdf_reader/screens/pdf_reader_with_tts.dart';
-import 'package:pdf_reader/services/file_service.dart';
 import 'package:pdf_reader/widgets/doc_list_item.dart';
-import 'package:pdf_reader/services/file_model_service.dart';
 
 class DocListWidget extends StatefulWidget {
   const DocListWidget({super.key, required this.savedFiles});
-  final List<FileSystemEntity> savedFiles;
+  final List<FileModel> savedFiles;
 
   @override
   DocListScreenState createState() => DocListScreenState();
@@ -15,50 +13,50 @@ class DocListWidget extends StatefulWidget {
 
 class DocListScreenState extends State<DocListWidget> {
   String? selectedExtension;
-  late List<FileSystemEntity> _savedFiles;
+  late Future<List<FileModel>> _savedFiles;
   bool _isLoading = true;
 
   @override
   void initState() {
-    super.initState();
     _prepareSavedFiles();
-  }
-
-  @override
-  void dispose() {
-    _savedFiles = [];
-    super.dispose();
+    super.initState();
   }
 
   void _prepareSavedFiles() async {
-    final files = await widget.savedFiles;
+    final files = widget.savedFiles;
 
     setState(() {
-      _savedFiles = files;
+      _savedFiles = Future.value(files);
       _isLoading = false;
     });
   }
 
-  void _selectDoc(BuildContext context, File file) {
-    Navigator.push(context, MaterialPageRoute(builder: (ctx) => PDFReaderWithTTS(file: FileModelService.createNewFromAFile(file))));
+  void _selectDoc(BuildContext context, FileModel file) {
+    Navigator.push(context, MaterialPageRoute(builder: (ctx) => PDFReaderWithTTS(file: file)));
   }
 
   @override
   Widget build(BuildContext context) {
-    return _isLoading
-        ? Center(child: CircularProgressIndicator())
-        : _savedFiles.isEmpty
-        ? Center(child: Text('The list is empty.'))
-        : ListView.builder(
-      itemCount: _savedFiles.length,
-      itemBuilder: (context, index) {
-        final File? file = FileService.getFileFromEntity(_savedFiles[index]);
-
-        return DocListItem(file: _savedFiles[index], onSelectDoc: () {
-          _selectDoc(context, file!);
-        },
+    return FutureBuilder<List<FileModel>>(future: _savedFiles, builder: (BuildContext context, AsyncSnapshot snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return CircularProgressIndicator(); // Show a loading indicator
+      } else if (snapshot.hasError) {
+        return Text('Error: ${snapshot.error}'); // Display error message
+      }
+      else if (snapshot.hasData) {
+        return ListView.builder(
+          itemCount: snapshot.data.length,
+          itemBuilder: (context, index) {
+            var files = snapshot.data;
+            return DocListItem(file: files[index], onSelectDoc: () {
+              _selectDoc(context, files[index]);
+            },
+            );
+          },
         );
-      },
-    );
+      } else {
+        return Container(); // Placeholder widget
+      }
+    });
   }
 }

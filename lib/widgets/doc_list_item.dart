@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf_reader/models/File.dart';
 import 'package:pdf_reader/providers/currently_read_files_provider.dart';
 import 'package:pdf_reader/providers/favorite_files.dart';
 import 'package:pdf_reader/providers/read_files_provider.dart';
@@ -9,7 +10,7 @@ import 'package:pdf_reader/providers/wish_files_provider.dart';
 class DocListItem extends ConsumerWidget {
   const DocListItem({super.key, required this.file, required this.onSelectDoc});
 
-  final FileSystemEntity file;
+  final FileModel file;
   final void Function() onSelectDoc;
 
   @override
@@ -25,7 +26,7 @@ class DocListItem extends ConsumerWidget {
     final isCurrentlyRead = currentlyReadFiles.contains(file.path);
 
     return ListTile(
-      title: Text(file.uri.pathSegments.last),
+      title: Text(file.name),
       subtitle: Center(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,

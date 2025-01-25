@@ -1,6 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_reader/widgets/doc_list.dart';
+
+import 'package:pdf_reader/models/File.dart';
 
 const allDocList = "all_doc_list";
 const favourites =  'favourites';
@@ -10,7 +11,7 @@ const readDocList = 'read_doc_list';
 
 class DocListScreen extends StatefulWidget {
   const DocListScreen({super.key, required this.savedFiles, this.title = "Document List"});
-  final List<FileSystemEntity> savedFiles;
+  final List<FileModel> savedFiles;
   final String title;
 
   @override
