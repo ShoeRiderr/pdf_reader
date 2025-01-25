@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'Package:pdf_reader/screens/doc_list.dart';
+import 'package:pdf_reader/types/drawer_screen_types.dart';
 
 class MainDrawer extends StatelessWidget {
   const MainDrawer({super.key, required this.onSelectScreen});

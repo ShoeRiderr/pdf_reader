@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pdf_reader/models/File.dart';
+import 'package:pdf_reader/models/file.dart';
 import 'package:pdf_reader/screens/pdf_reader_with_tts.dart';
 import 'package:pdf_reader/widgets/doc_list_item.dart';
 

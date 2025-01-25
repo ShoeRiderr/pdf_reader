@@ -6,7 +6,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:pdf_reader/model_managers/file_manager.dart';
 
-import 'package:pdf_reader/models/File.dart';
+import 'package:pdf_reader/models/file.dart';
 import 'package:read_pdf_text/read_pdf_text.dart';
 
 import 'package:pdf_reader/model_managers/file_content_manager.dart';

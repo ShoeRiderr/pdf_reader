@@ -1,8 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf_reader/models/File.dart';
+import 'package:pdf_reader/models/file.dart';
 import 'package:pdf_reader/screens/doc_list.dart';
 import 'package:pdf_reader/screens/pdf_reader_with_tts.dart';
 import 'package:pdf_reader/screens/search_settings.dart';
@@ -11,8 +10,8 @@ import 'package:pdf_reader/widgets/main_drawer.dart';
 import 'package:pdf_reader/services/file_service.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:pdf_reader/services/file_model_service.dart';
-
 import 'package:pdf_reader/model_managers/file_manager.dart';
+import 'package:pdf_reader/types/drawer_screen_types.dart';
 
 const kInitialFilters = {
   Filter.autoStart: false,
@@ -100,7 +99,7 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
   }
 
   Future<List<FileModel>> getFiles() async {
-    var allFileModels = await fileModelManager.getFileModels();
+    List<FileModel> allFileModels = await fileModelManager.getFileModels();
 
     switch (activePage) {
       case allDocList:
@@ -127,18 +126,14 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
   void _onFileUpload(value) async {
     switch (value) {
       case 'open_single_file':
-        bool status = false;
         File? file = await FileService.prepareFile();
 
         if (file != null) {
-          status = await FileService.saveFile(file);
-        }
-
-        if (status) {
-          var fileModel = FileModelService.createNewFromAFile(file!);
-          fileModelManager.addFileModel(fileModel);
+          await FileService.saveFile(file);
+          var fileModel = FileModelService.createNewFromAFile(file);
+          await fileModelManager.addFileModel(fileModel);
+          await getFiles();
           _openPdfView(fileModel);
-          break;
         }
 
         break;

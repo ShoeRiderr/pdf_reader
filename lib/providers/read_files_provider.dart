@@ -1,6 +1,6 @@
 import 'package:pdf_reader/services/file_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdf_reader/screens/doc_list.dart';
+import 'package:pdf_reader/types/drawer_screen_types.dart';
 
 const String storageKey = readDocList;
 

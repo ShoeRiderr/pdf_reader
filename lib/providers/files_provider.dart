@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdf_reader/services/file_service.dart';
+import 'package:pdf_reader/model_managers/file_manager.dart';
 
-final filesProvider = Provider((ref) {
-  return FileService.getAllSavedFiles();
+FileModelManager fileModelManager = FileModelManager();
+
+
+final fileModelsProvider = Provider((ref) async {
+  return await fileModelManager.getFileModels();
 });

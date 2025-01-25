@@ -1,7 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdf_reader/models/File.dart';
+import 'package:pdf_reader/models/file.dart';
 import 'package:pdf_reader/providers/currently_read_files_provider.dart';
 import 'package:pdf_reader/providers/favorite_files.dart';
 import 'package:pdf_reader/providers/read_files_provider.dart';

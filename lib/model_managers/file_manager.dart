@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:pdf_reader/models/File.dart';
+import 'package:pdf_reader/models/file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FileModelManager {
