@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
@@ -9,6 +10,8 @@ import 'package:pdf_reader/models/File.dart';
 import 'package:read_pdf_text/read_pdf_text.dart';
 
 import 'package:pdf_reader/model_managers/file_content_manager.dart';
+
+import '../models/file_content.dart';
 
 class PDFScreen extends StatefulWidget {
   final FileModel file;
@@ -53,6 +56,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
 
   @override
   void initState() {
+    // deleteAllContentModels();
     super.initState();
     setState(() {
       currentPage = widget.file.page;
@@ -68,7 +72,13 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
       });
     });
   }
-
+  // For manual tests purpose to check if loaded data from cache is in good format
+  void deleteAllContentModels() async {
+    final fileContentModels = await fileContentModelManager.getFileContentModels();
+    for (var fileContentModel in fileContentModels) {
+      fileContentModelManager.removeFileContentModel(fileContentModel);
+    }
+  }
   @override
   void dispose() {
     _flutterTts.stop();
@@ -125,20 +135,16 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
   Future<List<String>> _getPDFTextPaginated() async {
     List<String> textList = [];
     try {
-    //   // If FileContent model exists then try to fetch the data from there while it's less time consuming
+      // If FileContent model exists then try to fetch the data from there while it's less time consuming
       String path = widget.file.path;
-    //   FileContentModel? fileContentModel = await fileContentModelManager.getFileContentModelByUniqueKey(path);
-    //   if (fileContentModel != null) {
-    //     debugPrint(fileContentModel.content);
-    //     textList = json.decode(fileContentModel.content)
-    //     .map<String>((value) {
-    //       return value.toString();
-    //     })
-    //         .toList();
-    //   } else {
+      FileContentModel? fileContentModel = await fileContentModelManager.getFileContentModelByUniqueKey(path);
+      if (fileContentModel != null) {
+        textList = jsonDecode(fileContentModel.content).map<String>((val) => val.toString()).toList();
+      } else {
         textList = await ReadPdfText.getPDFtextPaginated(path);
-        // fileContentModelManager.addFileContentModel(FileContentModel(path: path, content: jsonEncode(textList)));
-      // }
+
+        fileContentModelManager.addFileContentModel(FileContentModel(path: path, content: jsonEncode(textList)));
+      }
     } on PlatformException {
       print('Failed to get PDF text.');
     }
@@ -235,10 +241,15 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
       ),
       body: Stack(
         children: <Widget>[
+          // Positioned.fill(
+          //   child: CustomPaint(
+          //     painter: HighlightPainter(_highlights),
+          //   ),
+          // ),
           PDFView(
             filePath: widget.file.path,
             enableSwipe: true,
-            swipeHorizontal: true,
+            // swipeHorizontal: true,
             autoSpacing: false,
             pageFling: true,
             pageSnap: true,
@@ -285,11 +296,6 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
               });
               _loadTextFromPage();
             },
-          ),
-          Positioned.fill(
-            child: CustomPaint(
-              painter: HighlightPainter(_highlights),
-            ),
           ),
           errorMessage.isEmpty
               ? !isReady

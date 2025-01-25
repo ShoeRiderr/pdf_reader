@@ -71,8 +71,8 @@ class FileContentModelManager {
       var path = fileContentModelData['path'];
       var content = fileContentModelData['content'];
       return FileContentModel(
-          path: path,
-          content: content,
+        path: path,
+        content: content,
       );
     }).toList();
   }
@@ -80,25 +80,29 @@ class FileContentModelManager {
   Future<FileContentModel?> getFileContentModelByUniqueKey(String uid) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final List<String> fileContentModels = prefs.getStringList(_key) ?? [];
-if (fileContentModels.isEmpty) {
-  return null;
-}
-    String? result = fileContentModels.firstWhere((fileContentModelJson) {
-      final fileContentModelData = jsonDecode(fileContentModelJson);
+    if (fileContentModels.isEmpty) {
+      return null;
+    }
+    try {
+      String? result = fileContentModels.firstWhere((fileContentModelJson) {
+        final fileContentModelData = jsonDecode(fileContentModelJson);
 
-      return fileContentModelData[_uniqueKey] == uid;
-    });
+        return fileContentModelData[_uniqueKey] == uid;
+      });
 
-    final fileContentModelData  = jsonDecode(result);
+      final fileContentModelData = jsonDecode(result);
 
-    var path = fileContentModelData['path'];
-    var content = fileContentModelData['content'];
+      var path = fileContentModelData['path'];
+      var content = fileContentModelData['content'];
 
-    if (path != null) {
-      return FileContentModel(
-        path: path,
-        content: content,
-      );
+      if (path != null) {
+        return FileContentModel(
+          path: path,
+          content: content,
+        );
+      }
+    } catch (e) {
+      return null;
     }
 
     return null;
