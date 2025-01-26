@@ -38,8 +38,9 @@ class DocListItem extends ConsumerWidget {
                 ScaffoldMessenger.of(context).clearSnackBars();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                        wasAdded ? 'File added as a favorite.' : 'File removed from favourites.'),
+                    content: Text(wasAdded
+                        ? 'File added as a favorite.'
+                        : 'File removed from favourites.'),
                   ),
                 );
               },
@@ -53,12 +54,15 @@ class DocListItem extends ConsumerWidget {
                 ScaffoldMessenger.of(context).clearSnackBars();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                        wasAdded ? 'File added to wishlist.' : 'File removed from the wishlist.'),
+                    content: Text(wasAdded
+                        ? 'File added to wishlist.'
+                        : 'File removed from the wishlist.'),
                   ),
                 );
               },
-              icon: Icon(isWish ? Icons.access_time_filled_outlined : Icons.access_time_outlined),
+              icon: Icon(isWish
+                  ? Icons.access_time_filled_outlined
+                  : Icons.access_time_outlined),
             ),
             IconButton(
               onPressed: () {
@@ -66,20 +70,24 @@ class DocListItem extends ConsumerWidget {
                     .read(readFilesProvider.notifier)
                     .toggleStatus(file.path);
 
-                // check if file is currently read
+                // check if file is currently read. If yes, then remove it from currently read
                 if (wasAdded && isCurrentlyRead) {
-                  ref.read(currentlyReadFilesProvider.notifier).toggleStatus(file.path);
+                  ref
+                      .read(currentlyReadFilesProvider.notifier)
+                      .setStatus(file.path, false);
                 }
 
                 ScaffoldMessenger.of(context).clearSnackBars();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                        wasAdded ? 'File added to read.' : 'File removed from the read.'),
+                    content: Text(wasAdded
+                        ? 'File added to read.'
+                        : 'File removed from the read.'),
                   ),
                 );
               },
-              icon: Icon(isRead ? Icons.check_circle : Icons.check_circle_outline),
+              icon: Icon(
+                  isRead ? Icons.check_circle : Icons.check_circle_outline),
             ),
           ],
         ),
@@ -88,5 +96,4 @@ class DocListItem extends ConsumerWidget {
       onTap: onSelectDoc,
     );
   }
-
 }

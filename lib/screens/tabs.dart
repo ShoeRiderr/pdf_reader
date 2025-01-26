@@ -29,8 +29,8 @@ class TabsScreen extends ConsumerStatefulWidget {
 class _TabsScreenState extends ConsumerState<TabsScreen> {
   Map<Filter, bool> _selectedFilters = kInitialFilters;
   final FileModelManager fileModelManager = FileModelManager();
-  String activePage = allDocList;
-  String activeTitle = "Document list";
+  String activePage = currentDocList;
+  String activeTitle = "Currently read list";
 
   void _onSelectFilters(Map<Filter, bool>? filters) {
     setState(() {

@@ -9,11 +9,11 @@ class CurrentlyReadFilesProvider extends StateNotifier<List<String>> {
     _loadFromPrefs();
   }
 
-  bool toggleStatus(String path) {
-    final fileIsRead = state.contains(path);
+  bool setStatus(String path, bool status) {
+    final fileIsCurrRead = state.contains(path);
     bool result = false;
 
-    if (fileIsRead) {
+    if (fileIsCurrRead && !status) {
       state = state.where((p) => p != path).toList();
       result = false;
     } else {
