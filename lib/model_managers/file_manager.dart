@@ -26,7 +26,7 @@ class FileModelManager {
     }
   }
 
-  Future<void> editFileModel(
+  Future<FileModel> editFileModel(
       FileModel fileModel, int page, int sentenceIndex) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> fileModels = prefs.getStringList(_key) ?? [];
@@ -44,6 +44,8 @@ class FileModelManager {
     }).toList();
 
     await prefs.setStringList(_key, fileModels);
+
+    return FileModel(name: fileModel.name, path: fileModel.path, page: page, sentenceIndex: sentenceIndex);
   }
 
   Future<void> removeFileModel(FileModel fileModel) async {

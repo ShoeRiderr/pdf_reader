@@ -1,17 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:pdf_reader/model_managers/file_manager.dart';
-
 import 'package:pdf_reader/models/file.dart';
 import 'package:read_pdf_text/read_pdf_text.dart';
-
 import 'package:pdf_reader/model_managers/file_content_manager.dart';
-
-import '../models/file_content.dart';
+import 'package:pdf_reader/models/file_content.dart';
 
 class PDFScreen extends StatefulWidget {
   final FileModel file;
@@ -24,7 +22,8 @@ class PDFScreen extends StatefulWidget {
 
 class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
   final FileModelManager fileModelManager = FileModelManager();
-  final FileContentModelManager fileContentModelManager = FileContentModelManager();
+  final FileContentModelManager fileContentModelManager =
+      FileContentModelManager();
   final Completer<PDFViewController> _controller =
       Completer<PDFViewController>();
   int? pages = 0;
@@ -39,6 +38,10 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
   List<String> _currentPageSentences = [];
   bool _isStopped = false;
   String _selectedLanguage = 'en-US';
+
+  // Popup, if user wants to start from a new page
+  bool _isFirstLoading = true;
+  late FileModel _file;
 
   // Extract file variables
   bool _isLoading = false;
@@ -59,8 +62,9 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     // deleteAllContentModels();
     super.initState();
     setState(() {
-      currentPage = widget.file.page;
-      _sentenceIndex = widget.file.sentenceIndex;
+      _file = widget.file;
+      currentPage = _file.page;
+      _sentenceIndex = _file.sentenceIndex;
       _isLoading = true;
     });
 
@@ -72,13 +76,16 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
       });
     });
   }
+
   // For manual tests purpose to check if loaded data from cache is in good format
   void deleteAllContentModels() async {
-    final fileContentModels = await fileContentModelManager.getFileContentModels();
+    final fileContentModels =
+        await fileContentModelManager.getFileContentModels();
     for (var fileContentModel in fileContentModels) {
       fileContentModelManager.removeFileContentModel(fileContentModel);
     }
   }
+
   @override
   void dispose() {
     _flutterTts.stop();
@@ -136,14 +143,18 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     List<String> textList = [];
     try {
       // If FileContent model exists then try to fetch the data from there while it's less time consuming
-      String path = widget.file.path;
-      FileContentModel? fileContentModel = await fileContentModelManager.getFileContentModelByUniqueKey(path);
+      String path = _file.path;
+      FileContentModel? fileContentModel =
+          await fileContentModelManager.getFileContentModelByUniqueKey(path);
       if (fileContentModel != null) {
-        textList = jsonDecode(fileContentModel.content).map<String>((val) => val.toString()).toList();
+        textList = jsonDecode(fileContentModel.content)
+            .map<String>((val) => val.toString())
+            .toList();
       } else {
         textList = await ReadPdfText.getPDFtextPaginated(path);
 
-        fileContentModelManager.addFileContentModel(FileContentModel(path: path, content: jsonEncode(textList)));
+        fileContentModelManager.addFileContentModel(
+            FileContentModel(path: path, content: jsonEncode(textList)));
       }
     } on PlatformException {
       print('Failed to get PDF text.');
@@ -168,9 +179,65 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     return text.split(delimiter);
   }
 
-  Future<void> _speak() async {
+  void _onModalSubmit(bool status) async {
+    if (!status) {
+      // When we disagree to read out loud from the new page, it'll redirect us to the last page, where we finished.
+      var controller = await _controller.future;
+      setState(() {
+        _file = widget.file;
+        currentPage = _file.page;
+        _sentenceIndex = _file.sentenceIndex;
+      });
+      controller.setPage(_file.page);
+    }
+
+    _speak(isCallFromModal: true);
+    Navigator.of(context).pop();
+  }
+
+  Future _openDialog() => showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+            title: Text(
+                "Your read position was changed. Would you like to speak out loud from the new position?"),
+            actions: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  TextButton(
+                      onPressed: () {
+                        _onModalSubmit(false);
+                      },
+                      child: Text("No")),
+                  TextButton(
+                      onPressed: () {
+                        _onModalSubmit(true);
+                      },
+                      child: Text("Yes"))
+                ],
+              )
+            ],
+          ));
+
+  Future<void> _speak({bool isCallFromModal = false}) async {
+    // If current page not match with last saved page in file, then open an popup with question, if you really want to start listening from the current page
+    if (_file.page != currentPage && !isCallFromModal) {
+      _openDialog();
+      // return void, while we have to wait for the answer from the modal
+      return;
+    }
+
     await _flutterTts.setLanguage(_selectedLanguage);
     await _flutterTts.setPitch(1.0);
+
+    if (Platform.isIOS) {
+      if (await _flutterTts.isLanguageAvailable(_selectedLanguage)) {
+        await _flutterTts.setIosAudioCategory(
+          IosTextToSpeechAudioCategory.playback,
+          [IosTextToSpeechAudioCategoryOptions.defaultToSpeaker],
+        );
+      }
+    }
 
     if (_currentPageSentences.isNotEmpty) {
       for (int i = _sentenceIndex; i < _currentPageSentences.length; i++) {
@@ -207,7 +274,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
   Future<void> _stop() async {
     await _flutterTts.stop();
     // edit model page and sentenceIndex on pause
-    fileModelManager.editFileModel(widget.file, currentPage!, _sentenceIndex);
+    fileModelManager.editFileModel(_file, currentPage!, _sentenceIndex);
     setState(() {
       _isStopped = true;
     });
@@ -217,7 +284,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.file.name),
+        title: Text(_file.name),
         actions: <Widget>[
           DropdownButton<String>(
             value: _selectedLanguage,
@@ -247,7 +314,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
           //   ),
           // ),
           PDFView(
-            filePath: widget.file.path,
+            filePath: _file.path,
             enableSwipe: true,
             // swipeHorizontal: true,
             autoSpacing: false,
@@ -285,14 +352,17 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
             onPageChanged: (int? page, int? total) {
               print('page change: ${page ?? 0 + 1}/$total');
               setState(() {
+                debugPrint(_file.page.toString());
+                debugPrint(widget.file.page.toString());
                 currentPage = page;
-                // change sentence index after changing the page. But not on first load
-                if (widget.file.page != currentPage) {
+                // change sentence index after changing the page. But not on first load, while when, the file was already read, it'll try to change it
+                if (_file.page != currentPage) {
                   _sentenceIndex = 0;
                 }
-                // Edit models current page and sentenceIndex after every page change
+
+                // Edit models current page and sentenceIndex after every page change but not on the first load
                 fileModelManager.editFileModel(
-                    widget.file, currentPage!, _sentenceIndex);
+                    _file, currentPage!, _sentenceIndex);
               });
               _loadTextFromPage();
             },
