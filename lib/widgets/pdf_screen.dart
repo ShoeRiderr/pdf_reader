@@ -1,15 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:pdf_reader/model_managers/file_manager.dart';
 import 'package:pdf_reader/models/file.dart';
+import 'package:pdf_reader/widgets/pdf_screen/bottom_naw_bar.dart';
+import 'package:pdf_reader/widgets/pdf_screen/bottom_speak_settings_nav_bar.dart';
 import 'package:read_pdf_text/read_pdf_text.dart';
 import 'package:pdf_reader/model_managers/file_content_manager.dart';
 import 'package:pdf_reader/models/file_content.dart';
+
+import 'multiline_app_bar.dart';
 
 class PDFScreen extends StatefulWidget {
   final FileModel file;
@@ -36,7 +42,8 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
   late int _sentenceIndex;
   List<String> _sentences = [];
   List<String> _currentPageSentences = [];
-  bool _isStopped = false;
+  bool _isPaused = false;
+  bool _isStopped = true;
   String _selectedLanguage = 'en-US';
 
   // Popup, if user wants to start from a new page
@@ -48,6 +55,8 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
 
   // Highlight currently read out loud text
   List<Rect> _highlights = [];
+
+  bool _isWholeScreen = true;
 
   final Map<String, String> _languages = {
     'English': 'en-US',
@@ -159,6 +168,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     } on PlatformException {
       print('Failed to get PDF text.');
     }
+
     return textList;
   }
 
@@ -221,11 +231,14 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
 
   Future<void> _speak({bool isCallFromModal = false}) async {
     // If current page not match with last saved page in file, then open an popup with question, if you really want to start listening from the current page
-    if (_file.page != currentPage && !isCallFromModal) {
-      _openDialog();
-      // return void, while we have to wait for the answer from the modal
-      return;
-    }
+    // if (_file.page != currentPage && !isCallFromModal) {
+    //   _openDialog();
+    //   // return void, while we have to wait for the answer from the modal
+    //   return;
+    // }
+    setState(() {
+      _isStopped = false;
+    });
 
     await _flutterTts.setLanguage(_selectedLanguage);
     await _flutterTts.setPitch(1.0);
@@ -241,9 +254,9 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
 
     if (_currentPageSentences.isNotEmpty) {
       for (int i = _sentenceIndex; i < _currentPageSentences.length; i++) {
-        if (_isStopped) {
+        if (_isPaused) {
           setState(() {
-            _isStopped = false;
+            _isPaused = false;
           });
           break;
         }
@@ -276,36 +289,69 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     // edit model page and sentenceIndex on pause
     fileModelManager.editFileModel(_file, currentPage!, _sentenceIndex);
     setState(() {
+      _isPaused = true;
       _isStopped = true;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    var brightness = MediaQuery.of(context).platformBrightness;
+    bool isDarkMode = brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_file.name),
-        actions: <Widget>[
-          DropdownButton<String>(
-            value: _selectedLanguage,
-            items: _languages.entries
-                .map((entry) => DropdownMenuItem(
-                      value: entry.value,
-                      child: Text(entry.key),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedLanguage = value;
-                });
-              }
-            },
-            dropdownColor: Colors.white,
-            underline: SizedBox(),
-          ),
-        ],
-      ),
+      appBar: _isWholeScreen
+          ? null
+          : AppBar(
+              iconTheme: Theme.of(context).iconTheme,
+              actions: <Widget>[
+                IconButton(
+                  onPressed: _isLoading ? null : _speak,
+                  icon: Icon(Icons.volume_down),
+                ),
+                DropdownButton<String>(
+                  value: _selectedLanguage,
+                  items: _languages.entries
+                      .map((entry) => DropdownMenuItem(
+                            value: entry.value,
+                            child: Text(
+                              entry.key,
+                              style: TextStyle(
+                                color: Theme.of(context).iconTheme.color,
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedLanguage = value;
+                      });
+                    }
+                  },
+                  dropdownColor: Theme.of(context).primaryColor,
+                  underline: SizedBox(),
+                ),
+              ],
+              bottom: PreferredSize(
+                preferredSize: Size(0.0, 25.0),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 20, right: 20),
+                  child: Flexible(
+                    fit: FlexFit.loose,
+                    child: Text(
+                      _file.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
       body: Stack(
         children: <Widget>[
           // Positioned.fill(
@@ -313,59 +359,66 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
           //     painter: HighlightPainter(_highlights),
           //   ),
           // ),
-          PDFView(
-            filePath: _file.path,
-            enableSwipe: true,
-            // swipeHorizontal: true,
-            autoSpacing: false,
-            pageFling: true,
-            pageSnap: true,
-            defaultPage: currentPage!,
-            fitPolicy: FitPolicy.BOTH,
-            preventLinkNavigation: false,
-            // if set to true the link is handled in flutter
-            // backgroundColor: Colors.black,
-            onRender: (_pages) {
-              setState(() {
-                pages = _pages;
-                isReady = true;
-              });
-            },
-            onError: (error) {
-              setState(() {
-                errorMessage = error.toString();
-              });
-              print(error.toString());
-            },
-            onPageError: (page, error) {
-              setState(() {
-                errorMessage = '$page: ${error.toString()}';
-              });
-              print('$page: ${error.toString()}');
-            },
-            onViewCreated: (PDFViewController pdfViewController) {
-              _controller.complete(pdfViewController);
-            },
-            onLinkHandler: (String? uri) {
-              print('goto uri: $uri');
-            },
-            onPageChanged: (int? page, int? total) {
-              print('page change: ${page ?? 0 + 1}/$total');
-              setState(() {
-                debugPrint(_file.page.toString());
-                debugPrint(widget.file.page.toString());
-                currentPage = page;
-                // change sentence index after changing the page. But not on first load, while when, the file was already read, it'll try to change it
-                if (_file.page != currentPage) {
-                  _sentenceIndex = 0;
-                }
+          GestureDetector(
+            child: PDFView(
+              nightMode: isDarkMode,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              filePath: _file.path,
+              enableSwipe: true,
+              // swipeHorizontal: true,
+              autoSpacing: false,
+              pageFling: true,
+              pageSnap: true,
+              // defaultPage: currentPage!,
+              fitPolicy: FitPolicy.BOTH,
+              preventLinkNavigation: false,
+              // if set to true the link is handled in flutter
+              // backgroundColor: Colors.black,
+              onRender: (_pages) {
+                setState(() {
+                  pages = _pages;
+                  isReady = true;
+                });
+              },
+              onError: (error) {
+                setState(() {
+                  errorMessage = error.toString();
+                });
+              },
+              onPageError: (page, error) {
+                setState(() {
+                  errorMessage = '$page: ${error.toString()}';
+                });
+              },
+              gestureRecognizers: Set()
+                ..add(Factory(() => TapGestureRecognizer()
+                  ..onTapDown = (tap) {
+                    setState(() {
+                      // Toggle show whole screen onTap
+                      _isWholeScreen = !_isWholeScreen;
+                    });
+                  })),
+              onViewCreated: (PDFViewController pdfViewController) async {
+                _controller.complete(pdfViewController);
+                var controller = await _controller.future;
+                controller.setPage(widget.file.page);
+              },
+              onPageChanged: (int? page, int? total) {
+                setState(() {
+                  currentPage = page;
+                  // change sentence index after changing the page. But not on first load, while when, the file was already read, it'll try to change it
+                  if (_file.page != currentPage) {
+                    _sentenceIndex = 0;
+                  }
 
-                // Edit models current page and sentenceIndex after every page change but not on the first load
-                fileModelManager.editFileModel(
-                    _file, currentPage!, _sentenceIndex);
-              });
-              _loadTextFromPage();
-            },
+                  // Edit models current page and sentenceIndex after every page change but not on the first load
+                  fileModelManager.editFileModel(
+                      _file, currentPage!, _sentenceIndex);
+                });
+                _loadTextFromPage();
+              },
+            ),
+            onTap: () {},
           ),
           errorMessage.isEmpty
               ? !isReady
@@ -378,28 +431,32 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
                 )
         ],
       ),
-      floatingActionButton: Row(children: [
-        SizedBox(width: 10),
-        Visibility(
-          visible: !_isLoading,
-          child: FloatingActionButton(
-            heroTag: 'speak',
-            onPressed: _isLoading ? null : _speak,
-            tooltip: 'Play',
-            child: Icon(Icons.play_arrow),
-          ),
-        ),
-        SizedBox(width: 10),
-        Visibility(
-          visible: !_isLoading,
-          child: FloatingActionButton(
-            heroTag: 'stop',
-            onPressed: _isLoading ? null : _stop,
-            tooltip: 'Play',
-            child: Icon(Icons.stop),
-          ),
-        ),
-      ]),
+      floatingActionButton: _isWholeScreen
+          ? null
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Visibility(
+                  visible: !_isLoading,
+                  child: FloatingActionButton(
+                    mini: true,
+                    heroTag: 'play_stop_button',
+                    onPressed: _isLoading
+                        ? null
+                        : _isStopped
+                            ? _speak
+                            : _stop,
+                    tooltip: _isStopped ? 'Play' : 'Stop',
+                    child: Icon(
+                      _isStopped ? Icons.play_arrow : Icons.stop,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+      bottomNavigationBar: PdfScreenSpeakSettingsBottomNavBar(),
+      // PdfScreenBottomNavBar()
     );
   }
 }

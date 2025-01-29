@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf_reader/models/file.dart';
 import 'package:pdf_reader/screens/doc_list.dart';
 import 'package:pdf_reader/screens/pdf_reader_with_tts.dart';
-import 'package:pdf_reader/screens/search_settings.dart';
+import 'package:pdf_reader/screens/settings/search_settings.dart';
 import 'package:pdf_reader/screens/settings.dart';
 import 'package:pdf_reader/widgets/main_drawer.dart';
 import 'package:pdf_reader/services/file_service.dart';
@@ -145,6 +145,7 @@ class _TabsScreenState extends ConsumerState<TabsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(activeTitle),
+        iconTheme: Theme.of(context).iconTheme,
         actions: [
           PopupMenuButton<String>(
             onSelected: _onFileUpload,

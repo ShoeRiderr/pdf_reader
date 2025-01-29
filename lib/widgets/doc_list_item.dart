@@ -44,7 +44,10 @@ class DocListItem extends ConsumerWidget {
                   ),
                 );
               },
-              icon: Icon(isFavorite ? Icons.star : Icons.star_border),
+              color: Theme.of(context).iconTheme.color,
+              icon: Icon(
+                isFavorite ? Icons.star : Icons.star_border,
+              ),
             ),
             IconButton(
               onPressed: () {
@@ -60,9 +63,12 @@ class DocListItem extends ConsumerWidget {
                   ),
                 );
               },
-              icon: Icon(isWish
-                  ? Icons.access_time_filled_outlined
-                  : Icons.access_time_outlined),
+              color: Theme.of(context).iconTheme.color,
+              icon: Icon(
+                isWish
+                    ? Icons.access_time_filled_outlined
+                    : Icons.access_time_outlined,
+              ),
             ),
             IconButton(
               onPressed: () {
@@ -86,13 +92,18 @@ class DocListItem extends ConsumerWidget {
                   ),
                 );
               },
+              color: Theme.of(context).iconTheme.color,
               icon: Icon(
-                  isRead ? Icons.check_circle : Icons.check_circle_outline),
+                isRead ? Icons.check_circle : Icons.check_circle_outline,
+              ),
             ),
           ],
         ),
       ),
-      leading: Icon(Icons.insert_drive_file),
+      leading: Icon(
+        Icons.insert_drive_file,
+        color: Theme.of(context).iconTheme.color,
+      ),
       onTap: onSelectDoc,
     );
   }
