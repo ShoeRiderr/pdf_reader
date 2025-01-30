@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 
 class PdfScreenSpeakSettingsBottomNavBar extends StatefulWidget {
-  const PdfScreenSpeakSettingsBottomNavBar({super.key});
+  const PdfScreenSpeakSettingsBottomNavBar({
+    super.key,
+    required this.onClose,
+    required this.onNextSentence,
+    required this.onPrevSentence,
+  });
+
+  final void Function(bool val) onClose;
+  final void Function() onNextSentence;
+  final void Function() onPrevSentence;
 
   @override
   State<StatefulWidget> createState() {
@@ -19,7 +28,9 @@ class PdfScreenBottomNavBarState
       children: [
         IconButton(
           icon: Icon(Icons.close),
-          onPressed: () {},
+          onPressed: () {
+            widget.onClose(false);
+          },
         ),
         IconButton(
           icon: Icon(Icons.settings),
@@ -28,11 +39,11 @@ class PdfScreenBottomNavBarState
         Text("page"),
         IconButton(
           icon: Icon(Icons.arrow_left),
-          onPressed: () {},
+          onPressed: widget.onPrevSentence,
         ),
         IconButton(
           icon: Icon(Icons.arrow_right),
-          onPressed: () {},
+          onPressed: widget.onNextSentence,
         ),
       ],
     );

@@ -44,6 +44,8 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
   List<String> _currentPageSentences = [];
   bool _isPaused = false;
   bool _isStopped = true;
+  bool _switchSentence = false;
+  bool _playMode = false;
   String _selectedLanguage = 'en-US';
 
   // Popup, if user wants to start from a new page
@@ -99,6 +101,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
   void dispose() {
     _flutterTts.stop();
 
+    fileModelManager.editFileModel(_file, currentPage!, _sentenceIndex);
     super.dispose();
   }
 
@@ -139,7 +142,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     return;
   }
 
-  void _loadTextFromPage() {
+  Future<void> _loadTextFromPage() async {
     var pageText = _formatText(_sentences.elementAt(currentPage!));
 
     setState(() {
@@ -236,6 +239,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     //   // return void, while we have to wait for the answer from the modal
     //   return;
     // }
+
     setState(() {
       _isStopped = false;
     });
@@ -254,44 +258,120 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
 
     if (_currentPageSentences.isNotEmpty) {
       for (int i = _sentenceIndex; i < _currentPageSentences.length; i++) {
+        // If stop button is clicked, then then _isPaused is set to true. Based on that we can break the loop.
         if (_isPaused) {
           setState(() {
             _isPaused = false;
           });
           break;
         }
-        final sentence = _currentPageSentences[i].toString();
-        await _flutterTts.awaitSpeakCompletion(true);
-        await _flutterTts.speak(sentence);
         setState(() {
           _sentenceIndex = i;
         });
+        final sentence = _currentPageSentences[i].toString();
+        await _flutterTts.awaitSpeakCompletion(true);
+        await _flutterTts.speak(sentence);
       }
 
-      // after last sentence, move to the next page and continue reading out loud
-      if (_sentenceIndex == _currentPageSentences.length - 1 &&
-          currentPage != null &&
-          pages != null &&
-          currentPage! < pages!) {
-        var controller = await _controller.future;
-        setState(() {
-          currentPage = (currentPage! + 1);
-        });
-
-        controller.setPage(currentPage!);
+      if (_checkIfLastSentenceOnPage()) {
+        _moveToTheNextPage();
         _speak();
       }
     }
   }
 
+  // after last sentence, move to the next page and continue reading out loud
+  bool _checkIfLastSentenceOnPage() {
+    return _sentenceIndex == _currentPageSentences.length - 1 &&
+        currentPage != null &&
+        pages != null &&
+        currentPage! < pages!;
+  }
+
+  Future<void> _moveToTheNextPage() async {
+    var controller = await _controller.future;
+    setState(() {
+      currentPage = (currentPage! + 1);
+    });
+
+    controller.setPage(currentPage!);
+  }
+
+  Future<void> _moveToThePrevPage() async {
+    var controller = await _controller.future;
+    debugPrint("before: ${currentPage}");
+    setState(() {
+      currentPage = (currentPage! - 1);
+    });
+
+    controller.setPage(currentPage!);
+    debugPrint("after: ${currentPage}");
+  }
+
   Future<void> _stop() async {
     await _flutterTts.stop();
-    // edit model page and sentenceIndex on pause
-    fileModelManager.editFileModel(_file, currentPage!, _sentenceIndex);
     setState(() {
       _isPaused = true;
       _isStopped = true;
     });
+    // edit model page and sentenceIndex on pause
+    fileModelManager.editFileModel(_file, currentPage!, _sentenceIndex);
+  }
+
+  void _nextSentence() async {
+    if (!_isStopped) {
+      await _stop();
+      // Flag for playing interactive text. When set to true then play the text again. Otherwise, let the speaker off
+      setState(() {
+        _switchSentence = true;
+      });
+    }
+
+    setState(() {
+      ++_sentenceIndex;
+    });
+
+    if (_checkIfLastSentenceOnPage()) {
+      setState(() {
+        _switchSentence = false;
+      });
+      return;
+    }
+
+    if (_switchSentence) {
+      await _speak();
+      setState(() {
+        _switchSentence = false;
+      });
+    }
+  }
+
+  void _prevSentence() async {
+    if (!_isStopped) {
+      await _stop();
+      // Flag for playing interactive text. When set to true then play the text again. Otherwise, let the speaker off
+      setState(() {
+        _switchSentence = true;
+      });
+    }
+
+    if (_sentenceIndex > 0) {
+      setState(() {
+        --_sentenceIndex;
+      });
+    }
+
+    if (_sentenceIndex == 0) {
+      debugPrint("prev");
+      await _moveToThePrevPage();
+
+      _sentenceIndex = _currentPageSentences.length - 1;
+      return;
+    }
+
+    if (_switchSentence) {
+      await _speak();
+    }
   }
 
   @override
@@ -306,7 +386,15 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
               iconTheme: Theme.of(context).iconTheme,
               actions: <Widget>[
                 IconButton(
-                  onPressed: _isLoading ? null : _speak,
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          if (!_playMode) _speak();
+
+                          setState(() {
+                            _playMode = true;
+                          });
+                        },
                   icon: Icon(Icons.volume_down),
                 ),
                 DropdownButton<String>(
@@ -335,10 +423,10 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
               ],
               bottom: PreferredSize(
                 preferredSize: Size(0.0, 25.0),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 20, right: 20),
-                  child: Flexible(
-                    fit: FlexFit.loose,
+                child: Flexible(
+                  fit: FlexFit.loose,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 20, right: 20),
                     child: Text(
                       _file.name,
                       maxLines: 1,
@@ -403,19 +491,27 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
                 var controller = await _controller.future;
                 controller.setPage(widget.file.page);
               },
-              onPageChanged: (int? page, int? total) {
+              onPageChanged: (int? page, int? total) async {
                 setState(() {
                   currentPage = page;
-                  // change sentence index after changing the page. But not on first load, while when, the file was already read, it'll try to change it
-                  if (_file.page != currentPage) {
-                    _sentenceIndex = 0;
-                  }
-
-                  // Edit models current page and sentenceIndex after every page change but not on the first load
-                  fileModelManager.editFileModel(
-                      _file, currentPage!, _sentenceIndex);
                 });
-                _loadTextFromPage();
+                await _loadTextFromPage();
+                // change sentence index after changing the page. But not on first load, while when, the file was already read, it'll try to change it.
+                // If _switchStatement is true, it means, that we clicked previous sentence at the beginning of the previous page
+                if (_file.page != currentPage && !_switchSentence) {
+                  setState(() {
+                    _sentenceIndex = 0;
+                  });
+                }
+                if (_switchSentence) {
+                  setState(() {
+                    _switchSentence = false;
+                  });
+                }
+
+                // Edit models current page and sentenceIndex after every page change but not on the first load
+                fileModelManager.editFileModel(
+                    _file, currentPage!, _sentenceIndex);
               },
             ),
             onTap: () {},
@@ -431,9 +527,8 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
                 )
         ],
       ),
-      floatingActionButton: _isWholeScreen
-          ? null
-          : Row(
+      floatingActionButton: !_isWholeScreen && _playMode
+          ? Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -454,8 +549,17 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ],
-            ),
-      bottomNavigationBar: PdfScreenSpeakSettingsBottomNavBar(),
+            )
+          : null,
+      bottomNavigationBar: !_isWholeScreen && _playMode
+          ? PdfScreenSpeakSettingsBottomNavBar(
+              onClose: (bool val) => setState(() => _playMode = val),
+              onNextSentence: _nextSentence,
+              onPrevSentence: _prevSentence,
+            )
+          : !_isWholeScreen && !_playMode
+              ? PdfScreenBottomNavBar()
+              : null,
       // PdfScreenBottomNavBar()
     );
   }

@@ -16,8 +16,14 @@ class PdfScreenBottomNavBarState extends State<PdfScreenBottomNavBar> {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton(icon: Icon(Icons.menu), onPressed: () {}),
-        IconButton(icon: Icon(Icons.search), onPressed: () {}),
+        IconButton(
+          icon: Icon(Icons.arrow_left),
+          onPressed: () {},
+        ),
+        IconButton(
+          icon: Icon(Icons.arrow_right),
+          onPressed: () {},
+        ),
       ],
     );
   }
