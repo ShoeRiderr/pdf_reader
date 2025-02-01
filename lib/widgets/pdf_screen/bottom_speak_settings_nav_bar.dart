@@ -6,11 +6,15 @@ class PdfScreenSpeakSettingsBottomNavBar extends StatefulWidget {
     required this.onClose,
     required this.onNextSentence,
     required this.onPrevSentence,
+    required this.toggleOnReadingOutLoud,
   });
 
   final void Function(bool val) onClose;
   final void Function() onNextSentence;
   final void Function() onPrevSentence;
+
+  // speak variables
+  final void Function() toggleOnReadingOutLoud;
 
   @override
   State<StatefulWidget> createState() {
@@ -20,30 +24,63 @@ class PdfScreenSpeakSettingsBottomNavBar extends StatefulWidget {
 
 class PdfScreenBottomNavBarState
     extends State<PdfScreenSpeakSettingsBottomNavBar> {
+  bool isStopped = false;
+
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        IconButton(
-          icon: Icon(Icons.close),
-          onPressed: () {
-            widget.onClose(false);
-          },
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            FloatingActionButton(
+              mini: true,
+              heroTag: 'play_stop_button',
+              onPressed: () {
+                setState(() {
+                  isStopped = !isStopped;
+                });
+
+                widget.toggleOnReadingOutLoud();
+              },
+              tooltip: isStopped ? 'Play' : 'Stop',
+              child: Icon(
+                isStopped ? Icons.play_arrow : Icons.stop,
+              ),
+            ),
+          ],
         ),
-        IconButton(
-          icon: Icon(Icons.settings),
-          onPressed: () {},
-        ),
-        Text("page"),
-        IconButton(
-          icon: Icon(Icons.arrow_left),
-          onPressed: widget.onPrevSentence,
-        ),
-        IconButton(
-          icon: Icon(Icons.arrow_right),
-          onPressed: widget.onNextSentence,
+        Container(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          width: double.infinity,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: Icon(Icons.close),
+                onPressed: () {
+                  widget.onClose(false);
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.settings),
+                onPressed: () {},
+              ),
+              Text("page"),
+              IconButton(
+                icon: Icon(Icons.arrow_left),
+                onPressed: widget.onPrevSentence,
+              ),
+              IconButton(
+                icon: Icon(Icons.arrow_right),
+                onPressed: widget.onNextSentence,
+              ),
+            ],
+          ),
         ),
       ],
     );

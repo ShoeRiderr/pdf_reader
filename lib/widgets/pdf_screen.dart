@@ -380,66 +380,6 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     bool isDarkMode = brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: _isWholeScreen
-          ? null
-          : AppBar(
-              iconTheme: Theme.of(context).iconTheme,
-              actions: <Widget>[
-                IconButton(
-                  onPressed: _isLoading
-                      ? null
-                      : () {
-                          if (!_playMode) _speak();
-
-                          setState(() {
-                            _playMode = true;
-                          });
-                        },
-                  icon: Icon(Icons.volume_down),
-                ),
-                DropdownButton<String>(
-                  value: _selectedLanguage,
-                  items: _languages.entries
-                      .map((entry) => DropdownMenuItem(
-                            value: entry.value,
-                            child: Text(
-                              entry.key,
-                              style: TextStyle(
-                                color: Theme.of(context).iconTheme.color,
-                              ),
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedLanguage = value;
-                      });
-                    }
-                  },
-                  dropdownColor: Theme.of(context).primaryColor,
-                  underline: SizedBox(),
-                ),
-              ],
-              bottom: PreferredSize(
-                preferredSize: Size(0.0, 25.0),
-                child: Flexible(
-                  fit: FlexFit.loose,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 20, right: 20),
-                    child: Text(
-                      _file.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
       body: Stack(
         children: <Widget>[
           // Positioned.fill(
@@ -524,43 +464,96 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
                   : Container()
               : Center(
                   child: Text(errorMessage),
-                )
-        ],
-      ),
-      floatingActionButton: !_isWholeScreen && _playMode
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Visibility(
-                  visible: !_isLoading,
-                  child: FloatingActionButton(
-                    mini: true,
-                    heroTag: 'play_stop_button',
-                    onPressed: _isLoading
-                        ? null
-                        : _isStopped
-                            ? _speak
-                            : _stop,
-                    tooltip: _isStopped ? 'Play' : 'Stop',
-                    child: Icon(
-                      _isStopped ? Icons.play_arrow : Icons.stop,
+                ),
+          Visibility(
+            visible: !_isWholeScreen,
+            child: Positioned(
+              top: 0.0,
+              left: 0.0,
+              right: 0.0,
+              child: AppBar(
+                title: PreferredSize(
+                  preferredSize: Size(0.0, 25.0),
+                  child: Flexible(
+                    fit: FlexFit.loose,
+                    child: Text(
+                      _file.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
-              ],
-            )
-          : null,
-      bottomNavigationBar: !_isWholeScreen && _playMode
-          ? PdfScreenSpeakSettingsBottomNavBar(
-              onClose: (bool val) => setState(() => _playMode = val),
-              onNextSentence: _nextSentence,
-              onPrevSentence: _prevSentence,
-            )
-          : !_isWholeScreen && !_playMode
-              ? PdfScreenBottomNavBar()
-              : null,
-      // PdfScreenBottomNavBar()
+                iconTheme: Theme.of(context).iconTheme,
+                actions: <Widget>[
+                  IconButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            if (!_playMode) _speak();
+
+                            setState(() {
+                              _playMode = true;
+                            });
+                          },
+                    icon: Icon(Icons.volume_down),
+                  ),
+                  DropdownButton<String>(
+                    value: _selectedLanguage,
+                    items: _languages.entries
+                        .map((entry) => DropdownMenuItem(
+                              value: entry.value,
+                              child: Text(
+                                entry.key,
+                                style: TextStyle(
+                                  color: Theme.of(context).iconTheme.color,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedLanguage = value;
+                        });
+                      }
+                    },
+                    dropdownColor: Theme.of(context).primaryColor,
+                    underline: SizedBox(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Visibility(
+            visible: !_isWholeScreen,
+            child: Positioned(
+              left: 0.0,
+              right: 0.0,
+              bottom: 0,
+              child: Container(
+                // height: 120,
+                padding: EdgeInsets.only(
+                  left: 5,
+                  top: 5,
+                  right: 5,
+                ),
+                child: _playMode
+                    ? PdfScreenSpeakSettingsBottomNavBar(
+                        onClose: (bool val) => setState(() => _playMode = val),
+                        onNextSentence: _nextSentence,
+                        onPrevSentence: _prevSentence,
+                        toggleOnReadingOutLoud: _isStopped ? _speak : _stop,
+                      )
+                    : PdfScreenBottomNavBar(),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
