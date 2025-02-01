@@ -6,6 +6,7 @@ class PdfScreenSpeakSettingsBottomNavBar extends StatefulWidget {
     required this.onClose,
     required this.onNextSentence,
     required this.onPrevSentence,
+    required this.isStopped,
     required this.toggleOnReadingOutLoud,
   });
 
@@ -14,6 +15,7 @@ class PdfScreenSpeakSettingsBottomNavBar extends StatefulWidget {
   final void Function() onPrevSentence;
 
   // speak variables
+  final bool isStopped;
   final void Function() toggleOnReadingOutLoud;
 
   @override
@@ -24,8 +26,6 @@ class PdfScreenSpeakSettingsBottomNavBar extends StatefulWidget {
 
 class PdfScreenBottomNavBarState
     extends State<PdfScreenSpeakSettingsBottomNavBar> {
-  bool isStopped = false;
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -39,16 +39,10 @@ class PdfScreenBottomNavBarState
             FloatingActionButton(
               mini: true,
               heroTag: 'play_stop_button',
-              onPressed: () {
-                setState(() {
-                  isStopped = !isStopped;
-                });
-
-                widget.toggleOnReadingOutLoud();
-              },
-              tooltip: isStopped ? 'Play' : 'Stop',
+              onPressed: widget.toggleOnReadingOutLoud,
+              tooltip: widget.isStopped ? 'Play' : 'Stop',
               child: Icon(
-                isStopped ? Icons.play_arrow : Icons.stop,
+                widget.isStopped ? Icons.play_arrow : Icons.stop,
               ),
             ),
           ],

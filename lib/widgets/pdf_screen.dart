@@ -546,6 +546,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
                         onClose: (bool val) => setState(() => _playMode = val),
                         onNextSentence: _nextSentence,
                         onPrevSentence: _prevSentence,
+                        isStopped: _isStopped,
                         toggleOnReadingOutLoud: _isStopped ? _speak : _stop,
                       )
                     : PdfScreenBottomNavBar(),
