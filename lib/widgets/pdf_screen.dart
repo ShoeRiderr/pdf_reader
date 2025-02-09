@@ -14,8 +14,7 @@ import 'package:pdf_reader/widgets/pdf_screen/bottom_speak_settings_nav_bar.dart
 import 'package:read_pdf_text/read_pdf_text.dart';
 import 'package:pdf_reader/model_managers/file_content_manager.dart';
 import 'package:pdf_reader/models/file_content.dart';
-
-import 'multiline_app_bar.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 class PDFScreen extends StatefulWidget {
   final FileModel file;
@@ -56,6 +55,10 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
   bool _isLoading = false;
 
   // Highlight currently read out loud text
+  late double pdfWidth; // A4 width
+  late double pdfHeight; // A4 height
+  final GlobalKey _pdfKey = GlobalKey();
+  late Size pdfSize;
   List<Rect> _highlights = [];
 
   bool _isWholeScreen = true;
@@ -86,6 +89,16 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
         _isLoading = false;
       });
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => getSizeAndPosition());
+  }
+
+  void getSizeAndPosition() {
+    RenderBox? cardBox =
+        _pdfKey.currentContext?.findRenderObject() as RenderBox?;
+    final position = cardBox?.localToGlobal(Offset.zero);
+    debugPrint("position of the pdfView: ${position!.dx}, ${position.dy}");
+    pdfSize = cardBox!.size;
+    setState(() {});
   }
 
   // For manual tests purpose to check if loaded data from cache is in good format
@@ -105,36 +118,79 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
-//   Future<List<Rect>> searchTextOnPage(String searchText, ) async {
-//     PdfDocument document =
-//     PdfDocument(inputBytes: File(widget.file.path).readAsBytesSync());
-// //Find the text and get matched items.
-//     List<MatchedItem> textCollection =
-//     PdfTextExtractor(document).findText([searchText]);
-// //Get the matched item in the collection using index.
-//     MatchedItem matchedText = textCollection[0];
-// //Get the text bounds.
-//     Rect textBounds = matchedText.bounds;
-//     // Find matches and calculate positions
-//     List<Rect> highlights = [];
-//     final matches = RegExp(searchText, caseSensitive: false).allMatches(_currentPageSentences.join(' '));
-//
-//     for (var match in matches) {
-//       // Convert text match positions to approximate coordinates
-//       // Assuming hardcoded positions as placeholders
-//       // You need to calculate these based on the actual PDF rendering
-//       highlights.add(Rect.fromLTWH(50, 100 + (match.start * 2), 200, 30));
-//     }
-//
-//     return highlights;
-//   }
-  //
-  // void _updateHighlights() async {
-  //   final highlights = await searchTextOnPage();
-  //   setState(() {
-  //     _highlights = highlights;
-  //   });
-  // }
+  /// Convert PDF coordinates to Flutter UI coordinates
+  Rect convertPdfCoordinates(double x, double y, double width, double height) {
+    double scaleX = MediaQuery.of(context).size.width / pdfWidth;
+    double scaleY = MediaQuery.of(context).size.height / pdfHeight;
+
+    return Rect.fromLTWH(
+        x * scaleX, y * scaleY, width * scaleX, height * scaleY);
+  }
+
+  /// Extract text and compute bounding boxes for multi-line sentences
+  Future<void> _extractTextPositions(String searchText) async {
+    final PdfDocument document =
+        PdfDocument(inputBytes: File(_file.path).readAsBytesSync());
+    document.pageSettings.size = Size(pdfWidth, pdfHeight);
+    searchText = searchText.trim();
+    List<Rect> areas = [];
+    // final PdfPage page = document.pages[currentPage!];
+    final PdfTextExtractor extractor = PdfTextExtractor(document);
+    final List<TextLine> lines = extractor.extractTextLines();
+
+    // Reconstruct full text line-by-line
+    String fullText = "";
+    Map<int, List<TextWord>> wordsByLine = {};
+    int lineIndex = 0;
+
+    for (var line in lines) {
+      fullText += line.text + "\n"; // Keep natural line breaks
+      wordsByLine[lineIndex] = line.wordCollection;
+      lineIndex++;
+    }
+    // Search for multi-line sentence
+    List<String> words = searchText.split(" ");
+    String firstWord = words.isNotEmpty ? words.first : '';
+    int startIndex = fullText.indexOf(firstWord);
+    // print("Start index of '$searchText': $startIndex");
+
+    if (startIndex != -1) {
+      // Find which words correspond to the match
+      List<TextWord> matchedWords = [];
+      int charCount = 0;
+
+      for (var words in wordsByLine.values) {
+        for (var word in words) {
+          charCount += word.text.length + 1; // Include spaces
+          if (charCount >= startIndex &&
+              charCount <= startIndex + searchText.length) {
+            matchedWords.add(word);
+          }
+        }
+      }
+
+      debugPrint(pdfSize.height.toString());
+
+      // Create a bounding box that spans multiple words/lines
+      if (matchedWords.isNotEmpty) {
+        double left = matchedWords.first.bounds.left;
+        debugPrint("duap");
+        double top = matchedWords.first.bounds.top;
+        double right = matchedWords.last.bounds.right;
+        double bottom = matchedWords.last.bounds.bottom;
+        debugPrint(
+            'left: ${left.toString()}, right: ${right.toString()}, top: ${top.toString()}, bottom: ${bottom.toString()}');
+        // Offset dx = Offset()
+        areas.add(matchedWords.first.bounds);
+      }
+    }
+
+    setState(() {
+      _highlights = areas;
+    });
+
+    document.dispose();
+  }
 
   Future<void> _loadFile() async {
     _sentences = await _getPDFTextPaginated();
@@ -269,6 +325,7 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
           _sentenceIndex = i;
         });
         final sentence = _currentPageSentences[i].toString();
+        await _extractTextPositions(sentence);
         await _flutterTts.awaitSpeakCompletion(true);
         await _flutterTts.speak(sentence);
       }
@@ -299,13 +356,12 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
 
   Future<void> _moveToThePrevPage() async {
     var controller = await _controller.future;
-    debugPrint("before: ${currentPage}");
+    debugPrint("before: $currentPage");
     setState(() {
       currentPage = (currentPage! - 1);
     });
 
     controller.setPage(currentPage!);
-    debugPrint("after: ${currentPage}");
   }
 
   Future<void> _stop() async {
@@ -380,180 +436,201 @@ class PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
     bool isDarkMode = brightness == Brightness.dark;
 
     return Scaffold(
-      body: Stack(
-        children: <Widget>[
-          // Positioned.fill(
-          //   child: CustomPaint(
-          //     painter: HighlightPainter(_highlights),
-          //   ),
-          // ),
-          GestureDetector(
-            child: PDFView(
-              nightMode: isDarkMode,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              filePath: _file.path,
-              enableSwipe: true,
-              // swipeHorizontal: true,
-              autoSpacing: false,
-              pageFling: true,
-              pageSnap: true,
-              // defaultPage: currentPage!,
-              fitPolicy: FitPolicy.BOTH,
-              preventLinkNavigation: false,
-              // if set to true the link is handled in flutter
-              // backgroundColor: Colors.black,
-              onRender: (_pages) {
-                setState(() {
-                  pages = _pages;
-                  isReady = true;
-                });
-              },
-              onError: (error) {
-                setState(() {
-                  errorMessage = error.toString();
-                });
-              },
-              onPageError: (page, error) {
-                setState(() {
-                  errorMessage = '$page: ${error.toString()}';
-                });
-              },
-              gestureRecognizers: Set()
-                ..add(Factory(() => TapGestureRecognizer()
-                  ..onTapDown = (tap) {
+      // Positioned.fill(
+      //   child: CustomPaint(
+      //     painter: HighlightPainter(_highlights),
+      //   ),
+      // ),
+      body: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          pdfHeight = constraints.maxHeight;
+          pdfWidth = constraints.maxWidth;
+          print(
+              "The height of the container is $pdfHeight and the width is $pdfWidth");
+          return Stack(
+            children: <Widget>[
+              GestureDetector(
+                child: PDFView(
+                  key: _pdfKey,
+                  nightMode: isDarkMode,
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  filePath: _file.path,
+                  enableSwipe: true,
+                  // swipeHorizontal: true,
+                  autoSpacing: false,
+                  pageFling: true,
+                  pageSnap: true,
+                  // defaultPage: currentPage!,
+                  fitPolicy: FitPolicy.BOTH,
+                  preventLinkNavigation: false,
+                  // if set to true the link is handled in flutter
+                  // backgroundColor: Colors.black,
+                  onRender: (_pages) {
                     setState(() {
-                      // Toggle show whole screen onTap
-                      _isWholeScreen = !_isWholeScreen;
+                      pages = _pages;
+                      isReady = true;
                     });
-                  })),
-              onViewCreated: (PDFViewController pdfViewController) async {
-                _controller.complete(pdfViewController);
-                var controller = await _controller.future;
-                controller.setPage(widget.file.page);
-              },
-              onPageChanged: (int? page, int? total) async {
-                setState(() {
-                  currentPage = page;
-                });
-                await _loadTextFromPage();
-                // change sentence index after changing the page. But not on first load, while when, the file was already read, it'll try to change it.
-                // If _switchStatement is true, it means, that we clicked previous sentence at the beginning of the previous page
-                if (_file.page != currentPage && !_switchSentence) {
-                  setState(() {
-                    _sentenceIndex = 0;
-                  });
-                }
-                if (_switchSentence) {
-                  setState(() {
-                    _switchSentence = false;
-                  });
-                }
+                  },
+                  onError: (error) {
+                    setState(() {
+                      errorMessage = error.toString();
+                    });
+                  },
+                  onPageError: (page, error) {
+                    setState(() {
+                      errorMessage = '$page: ${error.toString()}';
+                    });
+                  },
+                  gestureRecognizers: Set()
+                    ..add(Factory(() => TapGestureRecognizer()
+                      ..onTapDown = (tap) {
+                        setState(() {
+                          // Toggle show whole screen onTap
+                          _isWholeScreen = !_isWholeScreen;
+                        });
+                      })),
+                  onViewCreated: (PDFViewController pdfViewController) async {
+                    _controller.complete(pdfViewController);
+                    var controller = await _controller.future;
+                    controller.setPage(widget.file.page);
+                  },
+                  onPageChanged: (int? page, int? total) async {
+                    setState(() {
+                      currentPage = page;
+                    });
+                    await _loadTextFromPage();
+                    // change sentence index after changing the page. But not on first load, while when, the file was already read, it'll try to change it.
+                    // If _switchStatement is true, it means, that we clicked previous sentence at the beginning of the previous page
+                    if (_file.page != currentPage && !_switchSentence) {
+                      setState(() {
+                        _sentenceIndex = 0;
+                      });
+                    }
+                    if (_switchSentence) {
+                      setState(() {
+                        _switchSentence = false;
+                      });
+                    }
 
-                // Edit models current page and sentenceIndex after every page change but not on the first load
-                fileModelManager.editFileModel(
-                    _file, currentPage!, _sentenceIndex);
-              },
-            ),
-            onTap: () {},
-          ),
-          errorMessage.isEmpty
-              ? !isReady
-                  ? Center(
-                      child: CircularProgressIndicator(),
-                    )
-                  : Container()
-              : Center(
-                  child: Text(errorMessage),
+                    // Edit models current page and sentenceIndex after every page change but not on the first load
+                    fileModelManager.editFileModel(
+                        _file, currentPage!, _sentenceIndex);
+                  },
                 ),
-          Visibility(
-            visible: !_isWholeScreen,
-            child: Positioned(
-              top: 0.0,
-              left: 0.0,
-              right: 0.0,
-              child: AppBar(
-                title: PreferredSize(
-                  preferredSize: Size(0.0, 25.0),
-                  child: Flexible(
-                    fit: FlexFit.loose,
-                    child: Text(
-                      _file.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.w500,
+                onTap: () {},
+              ),
+              ..._highlights.map((rect) {
+                return Positioned(
+                  left: rect.left,
+                  top: rect.top,
+                  width: rect.width,
+                  height: rect.height,
+                  child: Container(
+                    color: Colors.yellow.withOpacity(0.5),
+                  ),
+                );
+              }),
+              errorMessage.isEmpty
+                  ? !isReady
+                      ? Center(
+                          child: CircularProgressIndicator(),
+                        )
+                      : Container()
+                  : Center(
+                      child: Text(errorMessage),
+                    ),
+              Visibility(
+                visible: !_isWholeScreen,
+                child: Positioned(
+                  top: 0.0,
+                  left: 0.0,
+                  right: 0.0,
+                  child: AppBar(
+                    title: PreferredSize(
+                      preferredSize: Size(0.0, 25.0),
+                      child: Flexible(
+                        fit: FlexFit.loose,
+                        child: Text(
+                          _file.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                iconTheme: Theme.of(context).iconTheme,
-                actions: <Widget>[
-                  IconButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () {
-                            if (!_playMode) _speak();
+                    iconTheme: Theme.of(context).iconTheme,
+                    actions: <Widget>[
+                      IconButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                if (!_playMode) _speak();
 
+                                setState(() {
+                                  _playMode = true;
+                                });
+                              },
+                        icon: Icon(Icons.volume_down),
+                      ),
+                      DropdownButton<String>(
+                        value: _selectedLanguage,
+                        items: _languages.entries
+                            .map((entry) => DropdownMenuItem(
+                                  value: entry.value,
+                                  child: Text(
+                                    entry.key,
+                                    style: TextStyle(
+                                      color: Theme.of(context).iconTheme.color,
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
                             setState(() {
-                              _playMode = true;
+                              _selectedLanguage = value;
                             });
-                          },
-                    icon: Icon(Icons.volume_down),
+                          }
+                        },
+                        dropdownColor: Theme.of(context).primaryColor,
+                        underline: SizedBox(),
+                      ),
+                    ],
                   ),
-                  DropdownButton<String>(
-                    value: _selectedLanguage,
-                    items: _languages.entries
-                        .map((entry) => DropdownMenuItem(
-                              value: entry.value,
-                              child: Text(
-                                entry.key,
-                                style: TextStyle(
-                                  color: Theme.of(context).iconTheme.color,
-                                ),
-                              ),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedLanguage = value;
-                        });
-                      }
-                    },
-                    dropdownColor: Theme.of(context).primaryColor,
-                    underline: SizedBox(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Visibility(
-            visible: !_isWholeScreen,
-            child: Positioned(
-              left: 0.0,
-              right: 0.0,
-              bottom: 0,
-              child: Container(
-                // height: 120,
-                padding: EdgeInsets.only(
-                  left: 5,
-                  top: 5,
-                  right: 5,
                 ),
-                child: _playMode
-                    ? PdfScreenSpeakSettingsBottomNavBar(
-                        onClose: (bool val) => setState(() => _playMode = val),
-                        onNextSentence: _nextSentence,
-                        onPrevSentence: _prevSentence,
-                        isStopped: _isStopped,
-                        toggleOnReadingOutLoud: _isStopped ? _speak : _stop,
-                      )
-                    : PdfScreenBottomNavBar(),
               ),
-            ),
-          ),
-        ],
+              Visibility(
+                visible: !_isWholeScreen,
+                child: Positioned(
+                  left: 0.0,
+                  right: 0.0,
+                  bottom: 0,
+                  child: Container(
+                    // height: 120,
+                    padding: EdgeInsets.only(
+                      left: 5,
+                      top: 5,
+                      right: 5,
+                    ),
+                    child: _playMode
+                        ? PdfScreenSpeakSettingsBottomNavBar(
+                            onClose: (bool val) =>
+                                setState(() => _playMode = val),
+                            onNextSentence: _nextSentence,
+                            onPrevSentence: _prevSentence,
+                            isStopped: _isStopped,
+                            toggleOnReadingOutLoud: _isStopped ? _speak : _stop,
+                          )
+                        : PdfScreenBottomNavBar(),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

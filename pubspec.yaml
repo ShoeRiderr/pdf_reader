@@ -46,6 +46,7 @@ dependencies:
   riverpod_annotation: ^2.6.1
   hooks_riverpod: ^2.6.1
   read_pdf_text: ^0.2.3
+  syncfusion_flutter_pdf: ^28.2.4
 
 dev_dependencies:
   flutter_test:
